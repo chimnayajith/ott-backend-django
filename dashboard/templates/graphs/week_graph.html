@@ -1,0 +1,276 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block branding %}
+    <h1 id="site-name">Analytics</h1>
+{% endblock %}
+
+
+{% block content %}
+<title>Title</title>
+
+    <div class="relative flex flex-col rounded-xl bg-white bg-clip-border text-gray-700 shadow-md">
+        <div class="relative mx-4 mt-4 flex flex-col gap-4 overflow-hidden rounded-none bg-transparent bg-clip-border text-gray-700 shadow-none md:flex-row md:items-center">
+            <div class="w-max rounded-lg bg-gray-900 p-5 text-white">
+            </div>
+            <div>
+                <h2 class="block font-sans text-base font-semibold leading-relaxed tracking-normal text-blue-gray-900 antialiased">
+                    Weekly user traffic
+                </h2>
+            </div>
+        </div>
+    </div>
+    <div class="pt-6 px-2 pb-0">
+            <div id="week-chart"></div>
+    </div>
+
+
+    <div class="relative flex flex-col rounded-xl bg-white bg-clip-border text-gray-700 shadow-md">
+      <div class="relative mx-4 mt-4 flex flex-col gap-4 overflow-hidden rounded-none bg-transparent bg-clip-border text-gray-700 shadow-none md:flex-row md:items-center">
+        <div>
+          <h2 class="block font-sans text-base font-semibold leading-relaxed tracking-normal text-blue-gray-900 antialiased">
+            User traffic this year
+          </h2>
+        </div>
+      </div>
+      <div class="pt-6 px-2 pb-0">
+        <div id="year-chart"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+    <!--================================================= line chart ================================================-->
+    <script>
+        const yearChartConfig = {
+          series: [
+            {
+              name: "New Logins",
+              data: [
+                  {% for month, value in year_data.new_logins.items %}
+                      {{ value }},
+                  {% endfor %}
+              ],
+            },
+            {
+              name: "New Registrations",
+              data: [
+                  {% for month, value in year_data.new_registrations.items %}
+                      {{ value }},
+                  {% endfor %}
+              ],
+            },
+            {
+              name: "Active Users",
+              data: [
+                {% for month, value in year_data.active_users.items %}
+                  {{ value }},
+                {% endfor %}
+              ],
+            },
+          ],
+          chart: {
+            type: "line",
+            height: 240,
+            toolbar: {
+              show: false,
+            },
+          },
+          title: {
+            show: "",
+          },
+          dataLabels: {
+            enabled: false,
+          },
+          colors: ["#29b6f6", "#66bb6a", "#ff7043"],
+          stroke: {
+            lineCap: "round",
+            curve: "smooth",
+          },
+          markers: {
+            size: 0,
+          },
+          xaxis: {
+            axisTicks: {
+              show: false,
+            },
+            axisBorder: {
+              show: false,
+            },
+            labels: {
+              style: {
+                colors: "GRAY",
+                fontSize: "12px",
+                fontFamily: "inherit",
+                fontWeight: 400,
+              },
+            },
+            categories: [
+                {% for month, value in year_data.new_logins.items %}
+                  "{{ month }}",
+                {% endfor %}
+            ],
+          },
+          yaxis: {
+            labels: {
+              style: {
+                colors: "GRAY",
+                fontSize: "12px",
+                fontFamily: "inherit",
+                fontWeight: 400,
+              },
+            },
+          },
+          grid: {
+            show: true,
+            borderColor: "#dddddd",
+            strokeDashArray: 5,
+            xaxis: {
+              lines: {
+                show: true,
+              },
+            },
+            padding: {
+              top: 5,
+              right: 20,
+            },
+          },
+          fill: {
+            opacity: 0.8,
+          },
+          tooltip: {
+            theme: "dark",
+          },
+          legend: {
+                show: true,
+                position: 'top', 
+                horizontalAlign: 'center',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                fontWeight: 400,
+                labels: {
+                    colors: "GRAY",
+                    useSeriesColors: false
+                },
+          },
+        };
+
+        const yearChart = new ApexCharts(document.querySelector("#year-chart"), yearChartConfig);
+        yearChart.render();
+    </script>
+
+    <!-- ================================================ bar chart =================================================-->
+    <script>
+        const weekChartConfig = {
+            series: [
+                {
+                    name: "New Logins",
+                    data: [
+                        {% for day, value in week_data.new_logins.items %}
+                            {{ value }},
+                        {% endfor %}
+                    ],
+                },
+                {
+                    name: "New Registrations",
+                    data: [
+                        {% for day, value in week_data.new_registrations.items %}
+                            {{ value }},
+                        {% endfor %}
+                    ],
+                },
+                {
+                    name: "Active Users",
+                    data: [
+                        {% for day, value in week_data.active_users.items %}
+                          {{ value }},
+                        {% endfor %}
+                      ],
+                },
+            ],
+            chart: {
+                type: "line",
+                height: 240,
+                toolbar: {
+                    show: false,
+                },
+            },
+            title: {
+                show: "",
+            },
+            dataLabels: {
+                enabled: false,
+            },
+            colors: ["#29b6f6", "#66bb6a", "#ff7043"],
+            stroke: {
+                curve: 'smooth',
+            },
+            xaxis: {
+                axisTicks: {
+                    show: false,
+                },
+                axisBorder: {
+                    show: false,
+                },
+                labels: {
+                    style: {
+                        colors: "GRAY",
+                        fontSize: "12px",
+                        fontFamily: "inherit",
+                        fontWeight: 400,
+                    },
+                },
+                categories: [
+                    {% for day in week_data.new_logins.keys %}
+                        "{{ day }}",
+                    {% endfor %}
+                ],
+            },
+            yaxis: {
+                labels: {
+                    style: {
+                        colors: "GRAY",
+                        fontSize: "12px",
+                        fontFamily: "inherit",
+                        fontWeight: 400,
+                    },
+                },
+            },
+            grid: {
+                show: true,
+                borderColor: "#dddddd",
+                strokeDashArray: 5,
+                xaxis: {
+                    lines: {
+                        show: true,
+                    },
+                },
+                padding: {
+                    top: 5,
+                    right: 20,
+                },
+            },
+            fill: {
+                opacity: 0.8,
+            },
+            tooltip: {
+                theme: "dark",
+            },
+            legend: {
+                show: true,
+                position: 'top', 
+                horizontalAlign: 'center',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                fontWeight: 400,
+                labels: {
+                    colors: "GRAY",
+                    useSeriesColors: false
+                },
+            },
+        };
+        const weekChart = new ApexCharts(document.querySelector("#week-chart"), weekChartConfig);
+        weekChart.render();
+    </script>
+    </div>
+{% endblock %}

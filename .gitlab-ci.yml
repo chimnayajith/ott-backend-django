@@ -1,0 +1,69 @@
+variables:
+  PYTHON_VERSION: "3.12"
+  TMBD_AUTH: $TMDB_AUTH
+  WATCHMODE_API_KEY: $WATCHMODE_API_KEY
+
+stages:
+  - build
+  - test
+  - lint
+  - release
+
+build_job:
+  stage: build
+  image: python:$PYTHON_VERSION
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'development' || $CI_COMMIT_BRANCH == 'main'
+    - if: $CI_MERGE_REQUEST_ID
+  script:
+    - echo "Creating virtual environment for the project..."
+    - python -m venv $CI_PROJECT_DIR/.venv
+    - source $CI_PROJECT_DIR/.venv/bin/activate
+    - echo "Installing requirements..."
+    - pip install -r requirements.txt
+    - deactivate
+    - echo "All requirements successfully installed."
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/.venv
+    expire_in: "1 day"
+
+test_job:
+  stage: test
+  image: python:$PYTHON_VERSION
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'development' || $CI_COMMIT_BRANCH == 'main'
+    - if: $CI_MERGE_REQUEST_ID
+  script:
+    - echo "Activating virtual environment..."
+    - source $CI_PROJECT_DIR/.venv/bin/activate
+    - echo "Running unit tests..."
+    - python manage.py test
+    - deactivate
+    - echo "All tests successfully passed."
+
+lint_job:
+  stage: lint
+  image: python:$PYTHON_VERSION
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'development' || $CI_COMMIT_BRANCH == 'main'
+    - if: $CI_MERGE_REQUEST_ID
+  script:
+    - echo "Activating virtual environment..."
+    - source $CI_PROJECT_DIR/.venv/bin/activate
+    - echo "Running ruff..."
+    - ruff check
+    - deactivate
+    - echo "All linting checks successfully passed."
+
+release_job:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == 'main'
+  script:
+    - RELEASE_VERSION=$(grep -o 'Release v[0-9.]\+' RELEASE_NOTES.md | awk '{print $2}')
+    - echo "Running release_job for version $RELEASE_VERSION..."
+    - release-cli create --name "Release $RELEASE_VERSION" --description "RELEASE_NOTES.md" --tag-name "$RELEASE_VERSION" --ref "$CI_COMMIT_SHA"
