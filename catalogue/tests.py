@@ -11,8 +11,8 @@ from dotenv import find_dotenv
 # ==========================================================
 class TestAPIKeysExist(TestCase):
     def test_api_key_exist(self):
-        tmdb_auth = os.environ.get("TMDB_AUTH") if find_dotenv() == '' else os.getenv("TMDB_AUTH") 
-        watchmode_auth = os.environ.get("WATCHMODE_API_KEY") if find_dotenv() == '' else os.getenv("WATCHMODE_API_KEY")
+        tmdb_auth = os.environ.get("TMDB_AUTH") if find_dotenv() == '' else  os.environ.get("TMDB_AUTH") 
+        watchmode_auth = os.environ.get("WATCHMODE_API_KEY") if find_dotenv() == '' else  os.environ.get("WATCHMODE_API_KEY")
         self.assertIsNotNone(tmdb_auth,"TMDB_AUTH environment variable is not set")
         self.assertIsNotNone(watchmode_auth,"WATCHMODE_API_KEY environment variable is not set")
 

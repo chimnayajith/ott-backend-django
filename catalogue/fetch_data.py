@@ -16,8 +16,8 @@ from catalogue.serializers import StreamingServiceSerializer
 
 
 load_dotenv()
-tmdb_auth = os.getenv("TMDB_AUTH")
-watchmode_auth = os.getenv("WATCHMODE_API_KEY")
+tmdb_auth =  os.environ.get("TMDB_AUTH")
+watchmode_auth =  os.environ.get("WATCHMODE_API_KEY")
 
 def debug_print(x):
     if DEBUG:
