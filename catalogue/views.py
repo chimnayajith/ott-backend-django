@@ -142,12 +142,48 @@ class UserListCreateView(generics.ListCreateAPIView):
     serializer_class = UserSerializer
 
 
-class UserRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+class UserRetrieveUpdateDestroyView(APIView):
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, IsOwner]
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
 
+    def get_object(self, user_id):
+        try:
+            return User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return None
+
+    def get(self, request, *args, **kwargs):
+        user_id = request.user.id
+        if not user_id:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        user = self.get_object(user_id)
+        if user is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+
+    def put(self, request, *args, **kwargs):
+        user_id = request.user.id
+        if not user_id:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        user = self.get_object(user_id)
+        if user is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = UserSerializer(user, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, *args, **kwargs):
+        user_id = request.user.id
+        if not user_id:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        user = self.get_object(user_id)
+        if user is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 # HistoryItem Views
 class HistoryItemListCreateView(APIView):
