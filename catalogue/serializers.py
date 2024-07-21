@@ -40,7 +40,8 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'email', 'username', 'password', 'country', 'date_of_birth', 'phone_number')
         extra_kwargs = {
             'date_of_birth': {'required': False},
-            'phone_number':{'required':False}
+            'phone_number': {'required': False},
+            'country': {'required': False},  # Make country field optional
         }
 
     def __init__(self, *args, **kwargs):
@@ -52,13 +53,14 @@ class UserSerializer(serializers.ModelSerializer):
         user = get_user_model().objects.create_user(
             email=validated_data['email'],
             username=validated_data['username'],
-            country=validated_data['country']
         )
         user.set_password(validated_data['password'])
+        if 'country' in validated_data:
+            user.country = validated_data['country']
         if 'date_of_birth' in validated_data:
-            user.date_of_birth=validated_data['date_of_birth']
+            user.date_of_birth = validated_data['date_of_birth']
         if 'phone_number' in validated_data:
-            user.phone_number=validated_data['phone_number']
+            user.phone_number = validated_data['phone_number']
         user.save()
         return user
 
