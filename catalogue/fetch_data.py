@@ -67,6 +67,7 @@ def check_for_title(movie_id):
 
 def tmdb_details(type,id):
     debug_print(f"movie id: {id}")
+    debug_print(tmdb_auth)
     try:
         # return movie details if already in db
         existing_title = Title.objects.filter(tmdb_id=id, type=type).first()
