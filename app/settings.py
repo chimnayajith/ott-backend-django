@@ -46,6 +46,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
+# settings.py
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://ott.chaayakada.fun',
+    'https://yourapp.railway.app'
+]
 
 ROOT_URLCONF = 'app.urls'
 MEDIA_ROOT = BASE_DIR / 'media'
