@@ -7,10 +7,12 @@ import traceback
 
 
 class User(AbstractUser, PermissionsMixin):
+    email = models.EmailField(unique=True)
     country = models.CharField(max_length=100)
     date_of_birth = models.DateField(null=True)
     phone_number = models.CharField(max_length=20, null=True)
-
+    google_user_id = models.CharField(unique=True, null=True, blank=True, max_length=255)
+    
     def __str__(self):
         return self.username
 

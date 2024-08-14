@@ -1,9 +1,15 @@
 from pathlib import Path
 import os
+import firebase_admin
+
 from dotenv import load_dotenv
 load_dotenv()
 
-base_url = 'https://ott.chaayakada.fun'
+if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+    default_app = firebase_admin.initialize_app()
+
+
+base_url = 'http://127.0.0.1:8000'
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -33,7 +39,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'whitenoise.runserver_nostatic', 
 ]
 
 MIDDLEWARE = [
@@ -44,13 +49,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-]
-# settings.py
-
-CSRF_TRUSTED_ORIGINS = [
-    'https://ott.chaayakada.fun',
-    'https://yourapp.railway.app'
 ]
 
 ROOT_URLCONF = 'app.urls'
@@ -85,17 +83,16 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-
-DJANGO_VECTOR_DB = {
-    "DEFAULT_EMBEDDING_CLASS": "vectordb.embedding_functions.SentenceTransformerEncoder",
-    "DEFAULT_EMBEDDING_MODEL": "all-MiniLM-L6-v2",
-    "DEFAULT_EMBEDDING_SPACE": "l2", # Can be "cosine" or "l2"
-    "DEFAULT_EMBEDDING_DIMENSION": 384, # Default is 384 for "all-MiniLM-L6-v2"
-    "DEFAULT_MAX_N_RESULTS": 10, # Number of results to return from search maximum is default is 10
-    "DEFAULT_MIN_SCORE": 0.0, # Minimum score to return from search default is 0.0
-    "DEFAULT_MAX_BRUTEFORCE_N": 10_000, # Maximum number of items to search using brute force default is 10_000. 
-    # If the number of items is greater than this number, the search will be done using the HNSW index.
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.environ.get('DATABASE_NAME'),
+#         'USER': os.environ.get('DATABASE_USER'),
+#         'PASSWORD': os.environ.get('DATABASE_PASSWORD'),
+#         'HOST': 'db',
+#         'PORT': '5432',
+#     }
+# }
 
 AUTH_USER_MODEL = 'catalogue.User'
 
@@ -133,9 +130,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = '/static/'
-STATIC_ROOT =os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE="whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -152,8 +147,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER =  os.environ.get("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD =  os.environ.get("EMAIL_HOST_PASSWORD")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # checking if the values are set in environtment

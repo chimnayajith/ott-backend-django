@@ -21,9 +21,14 @@ from django.conf import settings
 from django.urls import reverse
 from django.template.loader import render_to_string
 from .serializers import PasswordResetSerializer
-from .fetch_data import tmdb_reviews, \
-    tmdb_search, tmdb_details, get_media_data, debug_print
+from .fetch_data.tmdb import tmdb_reviews, \
+    tmdb_search, tmdb_details, get_media_data
+from .fetch_data.utils import debug_print
 from .signals import user_active
+from firebase_admin import auth
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # user authentication
 def user_auth(email=None, password=None):
@@ -44,6 +49,43 @@ def get_user(user_id):
     except UserModel.DoesNotExist:
         return None
 
+def generate_jwt_token(user):
+    expiration_time = datetime.datetime.utcfromtimestamp(4102444800)
+    payload = {
+        'id': user.id,
+        'exp': expiration_time,
+        'iat': datetime.datetime.utcnow()
+    }
+    token = jwt.encode(payload, os.environ.get('JWT_SECRET', 'secret'), algorithm='HS256')
+    return token
+
+def google_user_auth(google_auth_token):
+    try:
+        decoded_token = auth.verify_id_token(google_auth_token)
+    except auth.InvalidIdTokenError:
+        raise AuthenticationFailed("Invalid Google ID token.")
+    except auth.ExpiredIdTokenError:
+        raise AuthenticationFailed("Google ID token has expired.")
+    except auth.RevokedIdTokenError:
+        raise AuthenticationFailed("Google ID token has been revoked.")
+    except Exception as e:
+        raise AuthenticationFailed(f"Token verification failed: {str(e)}")
+
+    name = decoded_token.get("name")
+    uid = decoded_token.get("uid") or decoded_token.get("user_id")
+    email = decoded_token.get("email")
+
+    if not uid or not email:
+        raise AuthenticationFailed("Invalid token payload. UID or email missing.")
+
+    user, created = User.objects.get_or_create(
+        email=email,
+        defaults={"username": name.split()[0] if name else email, "google_user_id": uid},
+    )
+
+    return user
+
+
 
 # search and analytics
 # ----------------------------------------------------------------------------------------------------------------------
@@ -53,37 +95,32 @@ def get_user(user_id):
 # ----------------------------------------------------------------------------------------------------------------------
 class LoginView(APIView):
     def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
-        debug_print(password)
-
-        user = user_auth(email=email, password=password)
-
-        if user is not None:
-            login(request, user)
-            serializer = UserSerializer(user)
-
-            expiration_time = datetime.datetime.utcfromtimestamp(4102444800)
-            payload = {
-                'id': user.id,
-                'exp': expiration_time,
-                'iat': datetime.datetime.utcnow()
-            }
-            token = jwt.encode(payload, 'secret', algorithm='HS256')
+        google_auth_token = request.data.get('google_auth_token')
+        
+        if google_auth_token:
+            user = google_user_auth(google_auth_token)
+            token = generate_jwt_token(user)
 
             response = Response()
             response.set_cookie(key='jwt', value=token, httponly=True)
-
-            response.data = {
-                'jwt': token
-            }
-
-            # return  response
-
-            debug_print(serializer.data)
-            return (response)
+            response.data = {'jwt': token}
+            return response
         else:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+            email = request.data.get('email')
+            password = request.data.get('password')
+
+            user = user_auth(email=email, password=password)
+
+            if user:
+                login(request, user)
+                token = generate_jwt_token(user)
+
+                response = Response()
+                response.set_cookie(key='jwt', value=token, httponly=True)
+                response.data = {'jwt': token}
+                return response
+            else:
+                return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class DecodeJwtView(APIView):
@@ -105,19 +142,20 @@ class DecodeJwtView(APIView):
 class JWTAuthentication(BaseAuthentication):
     def authenticate(self, request):
         token = request.headers.get("Authorization")
-        if not token:
-            raise AuthenticationFailed('Unauthenticated')
-        try:
-            payload = jwt.decode(token, 'secret', algorithms=['HS256'])
-        except jwt.ExpiredSignatureError:
-            raise AuthenticationFailed('Unauthenticated')
-        user = User.objects.filter(id=payload['id']).first()
-        if user:
-            # emitting custom signal to log active users.
-            user_active.send(sender=self.__class__, user=user, request=request) 
-            return (user, None)
+        if token:
+            try:
+                payload = jwt.decode(token, 'secret', algorithms=['HS256'])
+            except jwt.ExpiredSignatureError:
+                raise AuthenticationFailed('Unauthenticated')
+            user = User.objects.filter(id=payload['id']).first()
+            if user:
+                # emitting custom signal to log active users.
+                user_active.send(sender=self.__class__, user=user, request=request) 
+                return (user, None)
+            else:
+                raise AuthenticationFailed("Invalid Token")
         else:
-            raise AuthenticationFailed("Unauthenticated")
+            raise AuthenticationFailed('Neither JWT or Google Token was provided')
 
 
 class IsOwner(BasePermission):
@@ -140,7 +178,6 @@ class UserView(APIView):
 class UserListCreateView(generics.ListCreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-
 
 class UserRetrieveUpdateDestroyView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -184,6 +221,7 @@ class UserRetrieveUpdateDestroyView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 # HistoryItem Views
 class HistoryItemListCreateView(APIView):

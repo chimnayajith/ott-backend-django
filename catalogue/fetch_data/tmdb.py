@@ -1,69 +1,19 @@
-# retrieve data
-import json
-import os
-from pprint import pprint
 import traceback
 from django.utils import timezone
-from dotenv import load_dotenv
-from app.settings import DEBUG, base_url
+from app.settings import base_url
 from catalogue import serializers
 from catalogue.models import (
-    Review, SourceLogos, Title, Trending, Source, CastMember, Upcoming, Releases, TopRated, 
+    Review, Title, Trending, Source, CastMember, Upcoming, Releases, TopRated, 
     TvAiringToday, TvOnTheAir, TvPopular, TvTopRated, TvTrending 
 )
 import requests
 from catalogue.serializers import StreamingServiceSerializer
-
-
-load_dotenv()
-tmdb_auth =  os.environ.get("TMDB_AUTH")
-watchmode_auth =  os.environ.get("WATCHMODE_API_KEY")
-
-def debug_print(x):
-    if DEBUG:
-        pprint(x)
-
-def transform_cert_json(type, data):
-    transformed_data = {"results": []}
-    debug_print(f"original certification data:{data}")
-    try:
-        if type == "movie":
-            for result in data["results"]:
-                region_data = {"region": result["iso_3166_1"], "releases": []}
-
-                for release in result["release_dates"]:
-                    release_data = {
-                        "certification": release["certification"],
-                        "release_date": release["release_date"],
-                        "type": release["type"]
-                    }
-
-                    region_data["releases"].append(release_data)
-
-                transformed_data["results"].append(region_data)
-        elif type == "tv":
-            for result in data["results"]:
-                region_data = {"region": result["iso_3166_1"], "releases": [{
-                        "certification": result["rating"],
-                        "release_date" : None,
-                        "type":6
-                    }]}
-
-                transformed_data["results"].append(region_data)
-    except Exception as e:
-        debug_print(f"An error occurred: {str(e)}")
-        traceback.print_exc()
-        raise Exception(e)
-    return transformed_data
-
-
-def check_for_title(movie_id):
-    obj = Title.objects.filter(tmdb_id=movie_id)
-    if obj.exists():
-        return obj.first()
-    else:
-        return None
-
+from .utils import debug_print
+from .config import tmdb_auth, watchmode_auth
+from .movie_data import get_releases, get_top_releases, get_trending, get_upcoming
+from .tv_data import get_airing_today, get_on_the_air, get_tv_popular, get_tv_top_rated, get_tv_trending
+from .watchmode import get_source_logo
+from .utils import transform_cert_json
 
 def tmdb_details(type,id):
     debug_print(f"movie id: {id}")
@@ -258,7 +208,6 @@ def tmdb_details(type,id):
         debug_print(f"movie id: {id}")
         raise Exception(f"Unexpected error: {str(e)}")
 
-
 def tmdb_search(type , query):
     url = f"https://api.themoviedb.org/3/search/{type}?query={query}&include_adult=false&language=en-US&page=1"
     headers = {
@@ -297,53 +246,6 @@ def tmdb_search(type , query):
 
     return converted_data
 
-
-def get_source_logo():
-    url = f"https://api.watchmode.com/v1/sources?apiKey={watchmode_auth}"
-
-    existing_logos = SourceLogos.objects.filter(id=1).first()
-
-    if existing_logos:
-        debug_print("Fetching logos from the database")
-        return existing_logos.to_json()
-
-    try:
-        response = requests.get(url)
-    except KeyError:
-        debug_print("Error: 'results' key not found in the response.")
-        return None
-
-    if response.status_code == 200:
-        data = json.loads(response.text)
-
-        logos = dict()
-        debug_print("{")
-        for i in data:
-            source_id = str(i['id'])
-            logo_path = i['logo_100px']
-            debug_print(f"logo-{source_id}: {logo_path}")
-            logos[source_id] = logo_path
-        debug_print("}")
-    else:
-        debug_print(f"Error: {response.status_code}")
-        raise Exception("error with get_source_logo()")
-
-
-    try:
-        debug_print("\saving logos json\n")
-        existing_logos = SourceLogos.objects.get(id=1)
-        existing_logos.json_data = logos
-        existing_logos.save()
-    except SourceLogos.DoesNotExist:
-        debug_print("\creating new logos json\n")
-        existing_logos = SourceLogos.objects.create(
-            id=1,
-            json_data=logos,
-            date_created=timezone.now(),
-        )
-    debug_print("\returning logos json\n")
-    return existing_logos.to_json()
-
 def tmdb_reviews(type , id):
     current_time = timezone.now()
     try:
@@ -374,112 +276,6 @@ def tmdb_reviews(type , id):
     else:
         response_data = response.json()
         raise Exception(f"API request failed : {response_data['status_message']}")
-
-
-def get_top_releases():
-    url = "https://api.themoviedb.org/3/movie/top_rated?language=en-US&page=1"
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {tmdb_auth}"
-    }
-
-    response = requests.get(url, headers=headers)
-    return response.json()
-
-
-def get_releases():
-    url = "https://api.themoviedb.org/3/movie/now_playing?language=en-US&page=1"
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {tmdb_auth}"
-    }
-
-    response = requests.get(url, headers=headers)
-    return response.json()
-
-
-def get_trending():
-    url = "https://api.themoviedb.org/3/trending/movie/day?language=en-US"
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {tmdb_auth}"
-    }
-
-    response = requests.get(url, headers=headers)
-    return response.json()
-
-
-def get_upcoming():
-    url = "https://api.themoviedb.org/3/movie/upcoming?language=en-US&page=1"
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {tmdb_auth}"
-    }
-
-    response = requests.get(url, headers=headers)
-    return response.json()
-
-
-def rename_field(response_json):
-    for item in response_json['results']:
-        item['title'] = item.pop('name')
-    return response_json
-
-def get_tv_trending():
-    url = "https://api.themoviedb.org/3/trending/tv/day?language=en-US"
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {tmdb_auth}"
-    }
-
-    response = requests.get(url, headers=headers)
-    data = rename_field(response.json())
-    return data
-
-def get_airing_today():
-    url = "https://api.themoviedb.org/3/tv/airing_today?language=en-US&page=1"
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {tmdb_auth}"
-    }
-
-    response = requests.get(url, headers=headers)
-    data = rename_field(response.json())
-    return data
-
-def get_on_the_air():
-    url = "https://api.themoviedb.org/3/tv/on_the_air?language=en-US&page=1"
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {tmdb_auth}"
-    }
-
-    response = requests.get(url, headers=headers)
-    data = rename_field(response.json())
-    return data
-
-def get_tv_popular():
-    url = "https://api.themoviedb.org/3/tv/popular?language=en-US&page=1"
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {tmdb_auth}"
-    }
-
-    response = requests.get(url, headers=headers)
-    data = rename_field(response.json())
-    return data
-
-def get_tv_top_rated():
-    url = "https://api.themoviedb.org/3/tv/top_rated?language=en-US&page=1"
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {tmdb_auth}"
-    }
-
-    response = requests.get(url, headers=headers)
-    data = rename_field(response.json())
-    return data
-
 
 def get_media_data(media_type):
     current_time = timezone.now()
