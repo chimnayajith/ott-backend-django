@@ -27,6 +27,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
     'https://ott.chaayakada.fun',
+    'https://web-production-dbc1f.up.railway.app'
 ]
 
 # Application definition
