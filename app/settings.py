@@ -90,11 +90,11 @@ WSGI_APPLICATION = 'app.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB'),
-        'USER': os.getenv('POSTGRES_USER'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
-        'HOST': os.getenv('RAILWAY_PRIVATE_DOMAIN'),
-        'PORT': os.getenv('PGPORT'),
+        'NAME': 'railway',  # Corresponds to POSTGRES_DB
+        'USER': 'postgres',  # Corresponds to POSTGRES_USER
+        'PASSWORD': 'FDafQaWwxbNnZzBRqpslWORovjTxBmrX',  # Corresponds to POSTGRES_PASSWORD
+        'HOST': 'junction.proxy.rlwy.net',  # Corresponds to RAILWAY_PRIVATE_DOMAIN
+        'PORT': '41212',  # Corresponds to PGPORT
     }
 }
 
