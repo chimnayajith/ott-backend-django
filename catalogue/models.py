@@ -4,15 +4,28 @@ from django.db.models import JSONField
 from django.utils import timezone
 from django.forms.models import model_to_dict
 import traceback
-
+import os
+from django.conf import settings
 
 class User(AbstractUser, PermissionsMixin):
     email = models.EmailField(unique=True)
-    country = models.CharField(max_length=100)
-    date_of_birth = models.DateField(null=True)
-    phone_number = models.CharField(max_length=20, null=True)
+    country = models.CharField(blank=True, max_length=100)
+    date_of_birth = models.DateField(blank=True, null=True)
+    phone_number = models.CharField(blank=True, max_length=20, null=True)
     google_user_id = models.CharField(unique=True, null=True, blank=True, max_length=255)
-    
+    profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+
+    # Deleting the old profile picture
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old_instance = User.objects.get(pk=self.pk)
+            if old_instance.profile_photo and old_instance.profile_photo != self.profile_photo:
+                old_image_path = os.path.join(settings.MEDIA_ROOT, old_instance.profile_photo.name)
+                if os.path.exists(old_image_path):
+                    os.remove(old_image_path)
+        
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.username
 
