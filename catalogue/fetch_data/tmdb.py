@@ -119,7 +119,7 @@ def tmdb_details(type,id):
         logos = get_source_logo()
         #debug_print(logos)
         try:
-            if not sources_data.get('success', True) or sources_data.get('statusCode', 200) != 200:
+            if isinstance(sources_data, dict) and (not sources_data.get('success', True) or sources_data.get('statusCode', 200) != 200):
                 debug_print(f"Warning: {sources_data.get('statusMessage', 'Unknown error')} - setting sources_data to empty.")
                 sources_data = []
             for source in sources_data:
